@@ -25,19 +25,30 @@ def load_user(user_id):
 def index():
     recommender.refresh()
     category = request.args.get('category')
+    search = request.args.get('search', '').strip()
+    
+    query = Product.query
+    
+    if search:
+        query = query.filter(
+            db.or_(
+                Product.name.ilike(f'%{search}%'),
+                Product.description.ilike(f'%{search}%'),
+                Product.category.ilike(f'%{search}%')
+            )
+        )
     
     if category:
-        products = Product.query.filter_by(category=category).order_by(Product.rating.desc()).all()
-    else:
-        products = Product.query.order_by(Product.rating.desc()).all()
+        query = query.filter_by(category=category)
     
+    products = query.order_by(Product.rating.desc()).all()
     recommendations = []
     categories = [c[0] for c in db.session.query(Product.category).distinct().all()]
     
     if current_user.is_authenticated:
         recommendations = recommender.get_recommendations(current_user.id, n=6)
     
-    return render_template('index.html', products=products, recommendations=recommendations, categories=categories, current_category=category)
+    return render_template('index.html', products=products, recommendations=recommendations, categories=categories, current_category=category, search_query=search)
 
 
 @app.route('/product/<int:product_id>')

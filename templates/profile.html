@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Личный кабинет - Recom</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#2563eb',
+                        secondary: '#64748b',
+                        accent: '#f59e0b',
+                        surface: '#ffffff',
+                        background: '#f8fafc'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background min-h-screen">
+    <nav class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <a href="/" class="text-2xl font-bold text-primary">Recom</a>
+                <div class="flex items-center gap-4">
+                    <a href="/" class="text-secondary hover:text-primary transition text-sm">На главную</a>
+                    <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition text-sm">
+                        Выйти
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="bg-white rounded-2xl shadow-sm p-8 mb-8">
+            <div class="flex items-center gap-6">
+                <div class="w-20 h-20 bg-primary rounded-full flex items-center justify-center">
+                    <span class="text-3xl text-white font-bold">{{ current_user.username[0]|upper }}</span>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">{{ current_user.username }}</h1>
+                    <p class="text-gray-500">{{ current_user.email }}</p>
+                    <p class="text-sm text-gray-400 mt-1">С нами с {{ current_user.created_at.strftime('%d.%m.%Y') }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white rounded-xl shadow-sm p-6">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <span class="text-2xl">👁</span>
+                    </div>
+                    <div>
+                        <p class="text-3xl font-bold text-gray-900">{{ stats.views }}</p>
+                        <p class="text-gray-500">Просмотров</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm p-6">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                        <span class="text-2xl">♥</span>
+                    </div>
+                    <div>
+                        <p class="text-3xl font-bold text-gray-900">{{ stats.likes }}</p>
+                        <p class="text-gray-500">Лайков</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm p-6">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                        <span class="text-2xl">🛒</span>
+                    </div>
+                    <div>
+                        <p class="text-3xl font-bold text-gray-900">{{ stats.buys }}</p>
+                        <p class="text-gray-500">Покупок</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <div class="p-6 border-b">
+                <h2 class="text-xl font-bold text-gray-900">История действий</h2>
+            </div>
+            
+            {% if actions %}
+            <div class="divide-y">
+                {% for action in actions %}
+                <a href="/product/{{ action.product_id }}" class="flex items-center gap-4 p-4 hover:bg-gray-50 transition">
+                    <div class="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                        <img src="{{ action.product.image_url }}" alt="" class="w-full h-full object-cover">
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-medium text-gray-900 truncate">{{ action.product.name }}</p>
+                        <p class="text-sm text-gray-500">
+                            {% if action.action_type == 'view' %}
+                            Просмотр
+                            {% elif action.action_type == 'like' %}
+                            В избранном
+                            {% elif action.action_type == 'buy' %}
+                            {% if action.rating %}Оценен на {{ action.rating }}/5{% else %}Куплен{% endif %}
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-bold text-gray-900">{{ action.product.price | int }} ₽</p>
+                        <p class="text-xs text-gray-400">{{ action.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="p-12 text-center">
+                <p class="text-gray-500 mb-4">Вы ещё не совершали действий</p>
+                <a href="/" class="inline-block bg-primary text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition">
+                    Перейти к каталогу
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+
+    <script>
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
+            window.location.href = '/';
+        }
+    </script>
+</body>
+</html>

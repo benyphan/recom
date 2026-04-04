@@ -16,6 +16,11 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
+ADMIN_EMAILS = ['bogdansilov@gmail.com', 'bogdansilov10@gmail.com']
+
+def is_admin():
+    return current_user.is_authenticated and current_user.email in ADMIN_EMAILS
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -178,15 +183,30 @@ def register():
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.get_json()
-    username = data.get('username')
+    identifier = data.get('username')
     password = data.get('password')
     
-    user = User.query.filter_by(username=username).first()
+    print(f"Login attempt: username={identifier}, password={password}")
     
-    if not user or not user.check_password(password):
+    user = User.query.filter(
+        db.or_(
+            User.username == identifier,
+            User.email == identifier
+        )
+    ).first()
+    
+    print(f"Found user: {user.username if user else None}, email: {user.email if user else None}")
+    
+    if not user:
+        print("User not found")
+        return jsonify({'error': 'Invalid username or password'}), 401
+    
+    if not user.check_password(password):
+        print("Wrong password")
         return jsonify({'error': 'Invalid username or password'}), 401
     
     login_user(user)
+    print("Login successful")
     return jsonify({'message': 'Login successful', 'user': {'id': user.id, 'username': user.username}})
 
 
@@ -278,6 +298,138 @@ def delete_review(product_id, review_id):
         'message': 'Review deleted',
         'product_rating': product.rating if product else 0
     })
+
+
+@app.route('/admin')
+@login_required
+def admin():
+    if not current_user.is_admin and current_user.email not in ADMIN_EMAILS:
+        return redirect(url_for('index'))
+    
+    users = User.query.all()
+    products = Product.query.all()
+    actions = UserAction.query.order_by(UserAction.created_at.desc()).limit(100).all()
+    
+    stats = {
+        'total_users': len(users),
+        'total_products': len(products),
+        'total_actions': UserAction.query.count(),
+        'total_views': UserAction.query.filter_by(action_type='view').count(),
+        'total_likes': UserAction.query.filter_by(action_type='like').count(),
+        'total_buys': UserAction.query.filter_by(action_type='buy').count(),
+    }
+    
+    return render_template('admin.html', users=users, products=products, actions=actions, stats=stats)
+
+
+@app.route('/admin/product/add', methods=['POST'])
+@login_required
+def admin_add_product():
+    if not current_user.is_admin and current_user.email not in ADMIN_EMAILS:
+        return jsonify({'error': 'Access denied'}), 403
+    
+    data = request.get_json()
+    name = data.get('name')
+    description = data.get('description')
+    price = data.get('price')
+    category = data.get('category')
+    image_url = data.get('image_url', '')
+    
+    if not all([name, description, price, category]):
+        return jsonify({'error': 'All fields required'}), 400
+    
+    product = Product(
+        name=name,
+        description=description,
+        price=float(price),
+        category=category,
+        image_url=image_url,
+        rating=0.0
+    )
+    db.session.add(product)
+    db.session.commit()
+    
+    return jsonify({'message': 'Product added', 'product': product.to_dict()})
+
+
+@app.route('/admin/product/<int:product_id>', methods=['DELETE'])
+@login_required
+def admin_delete_product(product_id):
+    if not current_user.is_admin and current_user.email not in ADMIN_EMAILS:
+        return jsonify({'error': 'Access denied'}), 403
+    
+    product = Product.query.get_or_404(product_id)
+    db.session.delete(product)
+    db.session.commit()
+    
+    return jsonify({'message': 'Product deleted'})
+
+
+@app.route('/admin/product/<int:product_id>', methods=['PUT'])
+@login_required
+def admin_update_product(product_id):
+    if not current_user.is_admin and current_user.email not in ADMIN_EMAILS:
+        return jsonify({'error': 'Access denied'}), 403
+    
+    product = Product.query.get_or_404(product_id)
+    data = request.get_json()
+    
+    if data.get('name'):
+        product.name = data['name']
+    if data.get('description'):
+        product.description = data['description']
+    if data.get('price'):
+        product.price = float(data['price'])
+    if data.get('category'):
+        product.category = data['category']
+    if data.get('image_url'):
+        product.image_url = data['image_url']
+    
+    db.session.commit()
+    
+    return jsonify({'message': 'Product updated', 'product': product.to_dict()})
+
+
+@app.route('/admin/user/<int:user_id>', methods=['DELETE'])
+@login_required
+def admin_delete_user(user_id):
+    if not current_user.is_admin and current_user.email not in ADMIN_EMAILS:
+        return jsonify({'error': 'Access denied'}), 403
+
+
+@app.route('/api/ensure-admins', methods=['POST'])
+def ensure_admins():
+    ADMIN_USERS = {
+        'bogdansilov@gmail.com': {'username': 'admin', 'password': 'admin123'},
+        'bogdansilov10@gmail.com': {'username': 'bogdan', 'password': '1234'},
+    }
+    
+    for email, data in ADMIN_USERS.items():
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            user = User(username=data['username'], email=email)
+            user.set_password(data['password'])
+            db.session.add(user)
+        else:
+            user.set_password(data['password'])
+    
+    db.session.commit()
+    return jsonify({'message': 'Admins ready'})
+
+
+@app.route('/debug-users')
+def debug_users():
+    users = User.query.all()
+    result = []
+    for u in users:
+        result.append({
+            'id': u.id,
+            'username': u.username,
+            'email': u.email,
+            'password_admin123': u.check_password('admin123'),
+            'password_1234': u.check_password('1234'),
+        })
+    return jsonify(result)
 
 
 if __name__ == '__main__':

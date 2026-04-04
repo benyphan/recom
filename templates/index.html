@@ -41,6 +41,11 @@
                 </form>
                 <div class="flex items-center gap-4">
                     {% if current_user.is_authenticated %}
+                        {% if current_user.email in ['bogdansilov@gmail.com', 'bogdansilov10@gmail.com'] %}
+                        <a href="/admin" class="bg-accent text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition text-sm">
+                            Админ
+                        </a>
+                        {% endif %}
                         <a href="/profile" class="text-secondary hover:text-primary transition">
                             <span class="text-sm">Привет, {{ current_user.username }}</span>
                         </a>

@@ -64,7 +64,7 @@
                     <p class="text-gray-600 mt-6 leading-relaxed">{{ product.description }}</p>
                     
                     <div class="flex gap-4 mt-8">
-                        <button onclick="doAction('buy')" class="flex-1 bg-primary text-white py-3 rounded-lg hover:bg-blue-600 transition font-medium">
+                        <button id="buy-btn" onclick="doAction('buy')" class="flex-1 bg-primary text-white py-3 rounded-lg hover:bg-blue-600 transition font-medium">
                             Купить
                         </button>
                         <button id="like-btn" onclick="doAction('like')" class="px-6 py-3 border-2 border-gray-200 rounded-lg hover:border-accent hover:text-accent transition">
@@ -143,6 +143,25 @@
         let isAuthenticated = {{ 'true' if current_user.is_authenticated else 'false' }};
         let selectedRating = 0;
         let myReviewId = null;
+        let hasPurchased = false;
+
+        // Check if already purchased
+        async function checkPurchaseStatus() {
+            if (!isAuthenticated) return;
+            try {
+                const response = await fetch('/api/profile/actions');
+                const actions = await response.json();
+                hasPurchased = actions.some(a => a.action_type === 'buy' && a.product_id === productId);
+                if (hasPurchased) {
+                    const btn = document.getElementById('buy-btn');
+                    btn.textContent = '✓ Куплено';
+                    btn.classList.remove('bg-primary', 'hover:bg-blue-600');
+                    btn.classList.add('bg-green-600', 'hover:bg-green-700');
+                }
+            } catch (e) {}
+        }
+
+        checkPurchaseStatus();
 
         async function doAction(actionType) {
             if (!isAuthenticated) {
@@ -166,6 +185,10 @@
                     btn.classList.remove('bg-accent', 'text-white', 'border-accent');
                 }
             } else if (actionType === 'buy' && result.status === 'added') {
+                const btn = document.getElementById('buy-btn');
+                btn.textContent = '✓ Куплено';
+                btn.classList.remove('bg-primary', 'hover:bg-blue-600');
+                btn.classList.add('bg-green-600', 'hover:bg-green-700');
                 alert('Спасибо за покупку!');
             }
         }

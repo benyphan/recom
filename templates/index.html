@@ -6,6 +6,31 @@
     <title>Recom - Рекомендации товаров</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <style>
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 5px rgba(37, 99, 235, 0.3); }
+            50% { box-shadow: 0 0 20px rgba(37, 99, 235, 0.6); }
+        }
+        .float-animation { animation: float 3s ease-in-out infinite; }
+        .pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+        .card-hover { transition: all 0.3s ease; }
+        .card-hover:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
+        .fade-in-up { animation: fadeInUp 0.5s ease-out; }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .modal-enter { animation: modalEnter 0.3s ease-out; }
+        @keyframes modalEnter {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
     <script>
         tailwind.config = {
             theme: {
@@ -69,8 +94,8 @@
             <h2 class="text-2xl font-bold text-gray-900 mb-6">Для вас</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {% for product in recommendations %}
-                <a href="/product/{{ product.id }}" class="group">
-                    <div class="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition-all duration-200 hover:scale-[1.02]">
+                <a href="/product/{{ product.id }}" class="group fade-in-up" style="animation-delay: {{ loop.index0 }}00ms">
+                    <div class="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition-all duration-300 hover:scale-[1.02] card-hover">
                         <div class="aspect-square bg-gray-100 overflow-hidden">
                             <img src="{{ product.image_url }}" alt="{{ product.name }}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
                         </div>
@@ -124,8 +149,8 @@
             
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {% for product in products %}
-                <a href="/product/{{ product.id }}" class="group">
-                    <div class="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition-all duration-200 hover:scale-[1.02]">
+                <a href="/product/{{ product.id }}" class="group fade-in-up" style="animation-delay: {{ loop.index0 }}50ms">
+                    <div class="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition-all duration-300 hover:scale-[1.02] card-hover">
                         <div class="aspect-square bg-gray-100 overflow-hidden">
                             <img src="{{ product.image_url }}" alt="{{ product.name }}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
                         </div>
@@ -152,14 +177,14 @@
     </main>
 
     <div id="modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
-        <div class="bg-white rounded-xl p-8 w-full max-w-md mx-4">
+        <div id="modal-content" class="bg-white rounded-xl p-8 w-full max-w-md mx-4">
             <div class="flex justify-between items-center mb-6">
                 <h3 id="modal-title" class="text-xl font-bold"></h3>
-                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">&times;</button>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 transition">&times;</button>
             </div>
             <form id="auth-form" onsubmit="handleAuth(event)">
                 <div id="form-fields"></div>
-                <button type="submit" class="w-full bg-primary text-white py-3 rounded-lg hover:bg-blue-600 transition font-medium mt-4">
+                <button type="submit" class="w-full bg-primary text-white py-3 rounded-lg hover:bg-blue-600 transition font-medium mt-4 pulse-glow">
                     Отправить
                 </button>
             </form>
@@ -209,12 +234,14 @@
 
             modal.classList.remove('hidden');
             modal.classList.add('flex');
+            document.getElementById('modal-content').classList.add('modal-enter');
         }
 
         function closeModal() {
             const modal = document.getElementById('modal');
             modal.classList.add('hidden');
             modal.classList.remove('flex');
+            document.getElementById('modal-content').classList.remove('modal-enter');
         }
 
         async function handleAuth(e) {

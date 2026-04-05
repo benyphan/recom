@@ -27,14 +27,6 @@ python run.py
 
 Откройте http://127.0.0.1:5000
 
-## Администраторы
-
-Для доступа к админ-панели используйте:
-
-| Email | Логин | Пароль |
-|-------|-------|--------|
-| bogdansilov@gmail.com | admin | admin123 |
-| bogdansilov10@gmail.com | bogdan | 1234 |
 
 ## API Endpoints
 

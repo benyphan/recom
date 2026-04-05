@@ -1,18 +1,60 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
+import os
+import secrets
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_from_directory
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from werkzeug.utils import secure_filename
 from models import db, User, Product, UserAction, Review, init_db
 from recommender import recommender
-import secrets
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = secrets.token_hex(32)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///recommendation.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['UPLOAD_FOLDER'] = 'static/uploads'
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 db.init_app(app)
 init_db(app)
 
 login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
+ADMIN_EMAILS = ['bogdansilov@gmail.com', 'bogdansilov10@gmail.com']
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+@app.route('/admin/upload', methods=['POST'])
+@login_required
+def upload_image():
+    if not current_user.is_admin and current_user.email not in ADMIN_EMAILS:
+        return jsonify({'error': 'Access denied'}), 403
+    
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    if file and allowed_file(file.filename):
+        ext = file.filename.rsplit('.', 1)[1].lower()
+        filename = f"{secrets.token_hex(16)}.{ext}"
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        return jsonify({
+            'message': 'File uploaded',
+            'url': f"/uploads/{filename}"
+        })
+    
+    return jsonify({'error': 'Invalid file type'}), 400
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
@@ -378,14 +420,18 @@ def admin_update_product(product_id):
         product.name = data['name']
     if data.get('description'):
         product.description = data['description']
-    if data.get('price'):
+    if data.get('price') is not None:
         product.price = float(data['price'])
     if data.get('category'):
         product.category = data['category']
-    if data.get('image_url'):
+    if data.get('image_url') is not None:
         product.image_url = data['image_url']
+    if data.get('rating') is not None:
+        product.rating = float(data['rating'])
     
     db.session.commit()
+    
+    return jsonify({'message': 'Product updated', 'product': product.to_dict()})
     
     return jsonify({'message': 'Product updated', 'product': product.to_dict()})
 

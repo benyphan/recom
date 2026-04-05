@@ -87,11 +87,18 @@ class Recommender:
         profile = Counter()
         total_weight = 0
         
+        action_counts = Counter(a.product_id for a in actions)
+        
         for action in actions:
             if action.product_id not in self.product_vectors:
                 continue
             
             weight = weights.get(action.action_type, 1.0)
+            
+            view_count = action_counts.get(action.product_id, 1)
+            if action.action_type == 'view':
+                weight *= min(view_count, 3)
+            
             if action.rating:
                 weight *= (action.rating / 5.0)
             

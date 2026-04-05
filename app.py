@@ -227,8 +227,9 @@ def login():
     data = request.get_json()
     identifier = data.get('username')
     password = data.get('password')
+    remember = data.get('remember', False)
     
-    print(f"Login attempt: username={identifier}, password={password}")
+    print(f"Login attempt: username={identifier}, password={password}, remember={remember}")
     
     user = User.query.filter(
         db.or_(
@@ -247,7 +248,7 @@ def login():
         print("Wrong password")
         return jsonify({'error': 'Invalid username or password'}), 401
     
-    login_user(user)
+    login_user(user, remember=remember)
     print("Login successful")
     return jsonify({'message': 'Login successful', 'user': {'id': user.id, 'username': user.username}})
 

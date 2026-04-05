@@ -319,6 +319,7 @@ def create_review(product_id):
         db.session.commit()
     
     update_product_rating(product_id)
+    update_product_rating_from_reviews(product_id)
     product = Product.query.get(product_id)
     
     return jsonify({
@@ -328,13 +329,22 @@ def create_review(product_id):
     }), 201
 
 
+def update_product_rating_from_reviews(product_id):
+    reviews = Review.query.filter_by(product_id=product_id).all()
+    if reviews:
+        avg_rating = sum(r.rating for r in reviews) / len(reviews)
+        product = Product.query.get(product_id)
+        product.rating = round(avg_rating, 1)
+        db.session.commit()
+
+
 @app.route('/api/products/<int:product_id>/reviews/<int:review_id>', methods=['DELETE'])
 @login_required
 def delete_review(product_id, review_id):
     review = Review.query.filter_by(id=review_id, user_id=current_user.id).first_or_404()
     db.session.delete(review)
     db.session.commit()
-    update_product_rating(product_id)
+    update_product_rating_from_reviews(product_id)
     product = Product.query.get(product_id)
     return jsonify({
         'message': 'Review deleted',

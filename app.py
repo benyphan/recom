@@ -5,6 +5,8 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from werkzeug.utils import secure_filename
 from models import db, User, Product, UserAction, Review, init_db
 from recommender import recommender
+from transliterate import translit
+
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = secrets.token_hex(32)
@@ -129,23 +131,23 @@ def product_action(product_id):
     data = request.get_json()
     action_type = data.get('action_type')
     rating = data.get('rating')
-    
-    if action_type not in ['view', 'like', 'buy']:
+
+    if action_type not in ['view', 'like', 'buy', 'cart']:
         return jsonify({'error': 'Invalid action type'}), 400
-    
+
     action = UserAction.query.filter_by(
         user_id=current_user.id,
         product_id=product_id,
         action_type=action_type
     ).first()
-    
+
     if action:
         if action_type == 'like':
             db.session.delete(action)
             db.session.commit()
             return jsonify({'status': 'removed'})
         return jsonify({'status': 'already_exists'})
-    
+
     action = UserAction(
         user_id=current_user.id,
         product_id=product_id,
@@ -154,10 +156,10 @@ def product_action(product_id):
     )
     db.session.add(action)
     db.session.commit()
-    
+
     if action_type in ['like', 'buy']:
         update_product_rating(product_id)
-    
+
     return jsonify({'status': 'added'})
 
 
@@ -173,6 +175,28 @@ def update_product_rating(product_id):
         product.rating = round(avg_rating, 1)
         db.session.commit()
 
+
+@app.route('/api/products/<int:product_id>/remove', methods=['DELETE'])
+@login_required
+def remove_action(product_id):
+    data = request.get_json()
+    action_type = data.get('action_type')
+
+    if action_type not in ['like', 'cart']:
+        return jsonify({'error': 'Invalid action type'}), 400
+
+    action = UserAction.query.filter_by(
+        user_id=current_user.id,
+        product_id=product_id,
+        action_type=action_type
+    ).first()
+
+    if action:
+        db.session.delete(action)
+        db.session.commit()
+        return jsonify({'status': 'removed'})
+
+    return jsonify({'error': 'Action not found'}), 404
 
 @app.route('/api/recommendations')
 @login_required
@@ -191,7 +215,8 @@ def profile():
     stats = {
         'views': sum(1 for a in actions if a.action_type == 'view'),
         'likes': sum(1 for a in actions if a.action_type == 'like'),
-        'buys': sum(1 for a in actions if a.action_type == 'buy')
+        'buys': sum(1 for a in actions if a.action_type == 'buy'),
+        'cart': sum(1 for a in actions if a.action_type == 'cart')
     }
     
     return render_template('profile.html', actions=actions, stats=stats)
@@ -487,6 +512,35 @@ def debug_users():
             'password_1234': u.check_password('1234'),
         })
     return jsonify(result)
+
+
+@app.route('/api/search/suggest')
+def search_suggest():
+    query = request.args.get('q', '').strip()
+    if len(query) < 1:
+        return jsonify([])
+
+    # Транслитерация русского в латиницу (например, "телефон" -> "telefon")
+    try:
+        query_latin = translit(query, 'ru', reversed=True)
+    except:
+        query_latin = query
+
+    products = Product.query.filter(
+        db.or_(
+            Product.name.ilike(f'%{query}%'),
+            Product.name.ilike(f'%{query_latin}%'),
+            Product.name.ilike(f'%{query.lower()}%'),
+            Product.name.ilike(f'%{query.capitalize()}%')
+        )
+    ).limit(10).all()
+
+    return jsonify([{
+        'id': p.id,
+        'name': p.name,
+        'price': p.price,
+        'image_url': p.image_url
+    } for p in products])
 
 
 if __name__ == '__main__':

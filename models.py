@@ -107,8 +107,8 @@ def seed_products():
     
     products = [
         # Смартфоны
-        Product(name='iPhone 15 Pro', description='Флагманский смартфон Apple с чипом A17 Pro, титановым корпусом и продвинутой камерой', price=149990, category='Смартфоны', image_url='https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=400', rating=4.8),
-        Product(name='Samsung Galaxy S24 Ultra', description='Ультимативный смартфон с S Pen, AI-функциями и 200МП камерой', price=134990, category='Смартфоны', image_url='https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=400', rating=4.6),
+        Product(name='iPhone 15 Pro', description='Флагманский смартфон Apple с чипом A17 Pro, титановым корпусом и продвинутой камерой', price=149990, category='Смартфоны', image_url='iphone_15_pro.jpg', rating=4.8),
+        Product(name='Samsung Galaxy S24 Ultra', description='Ультимативный смартфон с S Pen, AI-функциями и 200МП камерой', price=134990, category='Смартфоны', image_url='samsung_s24.jpg', rating=4.6),
         Product(name='Xiaomi 14 Pro', description='Флагман с Leica оптикой, Snapdragon 8 Gen 3 и 120W быстрой зарядкой', price=89990, category='Смартфоны', image_url='https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400', rating=4.4),
         Product(name='Google Pixel 8 Pro', description='Смартфон с лучшей камерой на рынке, чистый Android и AI-функциями Google', price=99990, category='Смартфоны', image_url='https://images.unsplash.com/photo-1598327105666-5b89351aff97?w=400', rating=4.5),
         Product(name='OnePlus 12', description='Флагман с Snapdragon 8 Gen 3, Hasselblad камерой и 100W зарядкой', price=79990, category='Смартфоны', image_url='https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=400', rating=4.3),

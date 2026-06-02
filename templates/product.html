@@ -47,7 +47,7 @@
         <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
             <div class="md:flex">
                 <div class="md:w-1/2 bg-gray-100">
-                    <img src="{{ url_for('static', filename='images/' + product.image_url) }}" alt="{{ product.name }}" class="w-full h-full object-cover">
+                    <img src="{{ product.image_url | image_src }}" alt="{{ product.name }}" class="w-full h-full object-cover">
                 </div>
                 <div class="md:w-1/2 p-8">
                     <span class="text-sm text-primary bg-blue-50 px-3 py-1 rounded-full">{{ product.category }}</span>
@@ -127,7 +127,7 @@
                 <a href="/product/{{ p.id }}" class="group">
                     <div class="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition-all duration-200 hover:scale-[1.02]">
                         <div class="aspect-square bg-gray-100 overflow-hidden">
-                            <img src="{{ url_for('static', filename='images/' + p.image_url) }}" alt="{{ p.name }}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                            <img src="{{ product.image_url | image_src }}" alt="{{ product.name }}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
                         </div>
                         <div class="p-4">
                             <span class="text-xs text-primary bg-blue-50 px-2 py-1 rounded-full">{{ p.category }}</span>

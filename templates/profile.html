@@ -138,7 +138,7 @@
                     {% for action in actions %}
                     <a href="/product/{{ action.product_id }}" class="flex items-center gap-4 p-4 hover:bg-gray-50 transition group">
                         <div class="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                            <img src="{{ url_for('static', filename='images/' + action.product.image_url) }}" alt="" class="w-full h-full object-cover">
+                            <img src="{{ action.product.image_url | image_src }}" alt="" class="w-full h-full object-cover">
                         </div>
                         <div class="flex-1 min-w-0">
                             <p class="font-medium text-gray-900 truncate">{{ action.product.name }}</p>
@@ -178,7 +178,7 @@
                     <div class="flex items-center gap-4 p-4 hover:bg-gray-50 transition group">
                         <a href="/product/{{ action.product_id }}" class="flex items-center gap-4 flex-1">
                             <div class="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                                <img src="{{ url_for('static', filename='images/' + action.product.image_url) }}" alt="" class="w-full h-full object-cover">
+                                <img src="{{ action.product.image_url | image_src }}" alt="" class="w-full h-full object-cover">
                             </div>
                             <div class="flex-1 min-w-0">
                                 <p class="font-medium text-gray-900 truncate">{{ action.product.name }}</p>
@@ -217,7 +217,7 @@
                         <div class="flex items-center gap-4 p-4 hover:bg-gray-50 transition group">
                             <a href="/product/{{ action.product_id }}" class="flex items-center gap-4 flex-1">
                                 <div class="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                                    <img src="{{ url_for('static', filename='images/' + action.product.image_url) }}"
+                                    <img src="{{ action.product.image_url | image_src }}"
                                          alt="" class="w-full h-full object-cover">
                                 </div>
                                 <div class="flex-1 min-w-0">

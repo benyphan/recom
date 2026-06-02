@@ -23,7 +23,18 @@ from transliterate import translit
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'ado-diploma-secret-change-in-production-2024')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///recommendation.db'
+
+# Используем PostgreSQL из Railway, если есть, иначе локальный SQLite
+DATABASE_URL = os.environ.get('DATABASE_URL')
+if DATABASE_URL:
+    # Railway может выдавать postgres://, нужно заменить на postgresql://
+    if DATABASE_URL.startswith('postgres://'):
+        DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+    app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+else:
+    # Локальная разработка - используем SQLite
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///recommendation.db'
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
@@ -34,13 +45,33 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 db.init_app(app)
 init_db(app)
 
+
 @app.template_filter('image_src')
 def image_src_filter(url):
     """Умный фильтр: внешние URL используем напрямую, локальные — через /static/images/"""
+    # Отладка - раскомментируйте если нужно
+    # print(f"DEBUG image_src: incoming url = '{url}'")
+
     if not url:
         return 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400'
-    if url.startswith(('http://', 'https://')):
+
+    # Убираем пробелы и невидимые символы
+    url = str(url).strip()
+
+    # print(f"DEBUG image_src: after strip = '{url}'")
+
+    # Проверяем, является ли URL внешним
+    if url.startswith('http://') or url.startswith('https://'):
+        # print(f"DEBUG: returning external URL")
         return url
+
+    # Если URL содержит 'cloudinary.com' или 'res.cloudinary.com'
+    if 'cloudinary.com' in url:
+        # print(f"DEBUG: returning cloudinary URL")
+        return url
+
+    # Иначе считаем локальным файлом
+    # print(f"DEBUG: returning local path")
     return f'/static/images/{url}'
 
 
@@ -497,16 +528,38 @@ def admin_update_product(product_id):
 @app.route('/admin/user/<int:user_id>', methods=['DELETE'])
 @login_required
 def admin_delete_user(user_id):
-    if not current_user.is_admin and current_user.email not in ADMIN_EMAILS:
-        return jsonify({'error': 'Access denied'}), 403
+    if not current_user.is_admin:
+        return jsonify({'error': 'Доступ запрещён'}), 403
 
     user = User.query.get_or_404(user_id)
-    if user.email in ADMIN_EMAILS:
-        return jsonify({'error': 'Cannot delete admin'}), 403
 
-    db.session.delete(user)
-    db.session.commit()
-    return jsonify({'message': 'User deleted'})
+    # Нельзя удалить самого себя
+    if user.id == current_user.id:
+        return jsonify({'error': 'Нельзя удалить самого себя'}), 400
+
+    try:
+        # Сначала удаляем все связанные данные
+        # 1. Удаляем отзывы пользователя
+        reviews = Review.query.filter_by(user_id=user.id).all()
+        for review in reviews:
+            db.session.delete(review)
+
+        # 2. Удаляем действия пользователя (история, избранное, корзина)
+        actions = UserAction.query.filter_by(user_id=user.id).all()
+        for action in actions:
+            db.session.delete(action)
+
+        # 3. Теперь удаляем самого пользователя
+        db.session.delete(user)
+        db.session.commit()
+
+        flash('Пользователь успешно удалён', 'success')
+        return jsonify({'success': True})
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"Ошибка при удалении: {e}")
+        return jsonify({'error': f'Ошибка при удалении: {str(e)}'}), 500
 
 
 

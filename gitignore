@@ -1,0 +1,18 @@
+# Секреты — никогда не загружать в git
+.env
+
+# База данных SQLite
+instance/
+*.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+*.iml

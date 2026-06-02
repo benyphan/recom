@@ -1,6 +1,19 @@
 import os
 import secrets
+from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_from_directory
+
+load_dotenv()  # загружаем .env до создания app
+
+import cloudinary
+import cloudinary.uploader
+
+cloudinary.config(
+    cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'),
+    api_key=os.environ.get('CLOUDINARY_API_KEY'),
+    api_secret=os.environ.get('CLOUDINARY_API_SECRET')
+)
+
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 from models import db, User, Product, UserAction, Review, init_db
@@ -9,7 +22,7 @@ from transliterate import translit
 
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = secrets.token_hex(32)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'ado-diploma-secret-change-in-production-2024')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///recommendation.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
@@ -21,11 +34,17 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 db.init_app(app)
 init_db(app)
 
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'login'
+@app.template_filter('image_src')
+def image_src_filter(url):
+    """Умный фильтр: внешние URL используем напрямую, локальные — через /static/images/"""
+    if not url:
+        return 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400'
+    if url.startswith(('http://', 'https://')):
+        return url
+    return f'/static/images/{url}'
 
-ADMIN_EMAILS = ['bogdansilov@gmail.com', 'bogdansilov10@gmail.com']
+
+login_manager = LoginManager()
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
@@ -48,14 +67,19 @@ def upload_image():
         return jsonify({'error': 'No file selected'}), 400
     
     if file and allowed_file(file.filename):
-        ext = file.filename.rsplit('.', 1)[1].lower()
-        filename = f"{secrets.token_hex(16)}.{ext}"
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        return jsonify({
-            'message': 'File uploaded',
-            'url': f"/uploads/{filename}"
-        })
-    
+        try:
+            result = cloudinary.uploader.upload(
+                file,
+                folder='ado_marketplace',
+                resource_type='image'
+            )
+            return jsonify({
+                'message': 'File uploaded',
+                'url': result['secure_url']
+            })
+        except Exception as e:
+            return jsonify({'error': f'Cloudinary upload failed: {str(e)}'}), 500
+
     return jsonify({'error': 'Invalid file type'}), 400
 login_manager.init_app(app)
 login_manager.login_view = 'login'
@@ -468,8 +492,6 @@ def admin_update_product(product_id):
     db.session.commit()
     
     return jsonify({'message': 'Product updated', 'product': product.to_dict()})
-    
-    return jsonify({'message': 'Product updated', 'product': product.to_dict()})
 
 
 @app.route('/admin/user/<int:user_id>', methods=['DELETE'])
@@ -478,40 +500,15 @@ def admin_delete_user(user_id):
     if not current_user.is_admin and current_user.email not in ADMIN_EMAILS:
         return jsonify({'error': 'Access denied'}), 403
 
+    user = User.query.get_or_404(user_id)
+    if user.email in ADMIN_EMAILS:
+        return jsonify({'error': 'Cannot delete admin'}), 403
 
-@app.route('/api/ensure-admins', methods=['POST'])
-def ensure_admins():
-    ADMIN_USERS = {
-        'bogdansilov@gmail.com': {'username': 'admin', 'password': 'admin123'},
-        'bogdansilov10@gmail.com': {'username': 'bogdan', 'password': '1234'},
-    }
-    
-    for email, data in ADMIN_USERS.items():
-        user = User.query.filter_by(email=email).first()
-        if not user:
-            user = User(username=data['username'], email=email)
-            user.set_password(data['password'])
-            db.session.add(user)
-        else:
-            user.set_password(data['password'])
-    
+    db.session.delete(user)
     db.session.commit()
-    return jsonify({'message': 'Admins ready'})
+    return jsonify({'message': 'User deleted'})
 
 
-@app.route('/debug-users')
-def debug_users():
-    users = User.query.all()
-    result = []
-    for u in users:
-        result.append({
-            'id': u.id,
-            'username': u.username,
-            'email': u.email,
-            'password_admin123': u.check_password('admin123'),
-            'password_1234': u.check_password('1234'),
-        })
-    return jsonify(result)
 
 
 @app.route('/api/search/suggest')
